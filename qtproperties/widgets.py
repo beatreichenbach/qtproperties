@@ -394,7 +394,7 @@ class EnumProperty(PropertyWidget):
         for e in self.enum:
             self.combo.addItem(e.name, e)
         self.layout().addWidget(self.combo)
-        self.layout().addStretch()
+        # self.layout().addStretch()
 
     def connect_ui(self):
         self.combo.currentIndexChanged.connect(self.combo_index_changed)
@@ -524,15 +524,18 @@ class IntLineEdit(QtWidgets.QLineEdit):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._value = 0
         self.editingFinished.connect(self.strip_padding)
-        self.textChanged.connect(lambda: self.valueChanged.emit(self.value))
+        # self.textChanged.connect(lambda: self.valueChanged.emit(self.value))
         self.setValidator(IntValidator())
+
+        self.value = 1
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Up:
-            self.step(amount=1)
+            self.step(add=True)
         elif event.key() == QtCore.Qt.Key_Down:
-            self.step(amount=-1)
+            self.step(add=False)
         else:
             return super().keyPressEvent(event)
 
@@ -550,6 +553,13 @@ class IntLineEdit(QtWidgets.QLineEdit):
             return int(self.text())
         except ValueError:
             return 0
+
+    @value.setter
+    def value(self, value):
+        pass
+        if value != self._value:
+            self.valueChanged.emit(value)
+        self._value = value
 
     def setValue(self, value):
         text = self.validator().fixup(str(value))
@@ -596,6 +606,7 @@ class IntLineEdit(QtWidgets.QLineEdit):
         if state != QtGui.QValidator.State.Acceptable:
             return False
         self.setText(text)
+        self.value = value
 
         # get new position and set selection
         position = self.step_index_to_position(step_index, text)
@@ -631,6 +642,7 @@ class IntLineEdit(QtWidgets.QLineEdit):
         value = self.value
         if int(value) == value:
             value = int(value)
+        self.value = value
         self.setText(str(value))
 
 
@@ -647,7 +659,7 @@ class FloatLineEdit(IntLineEdit):
     def setDecimals(self, decimals):
         self.validator().setDecimals(decimals)
 
-    @property
+    @IntLineEdit.value.getter
     def value(self):
         try:
             return float(self.text())

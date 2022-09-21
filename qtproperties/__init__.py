@@ -2,3 +2,5 @@ from qtproperties.widgets import IntProperty, FloatProperty, Int2Property, Float
 from qtproperties.widgets import EnumProperty, BoolProperty, PathProperty, ColorProperty
 from qtproperties.data import Int2, Float2
 from qtproperties.editor import PropertyEditor, PropertyGroup
+
+# TODO: Should __all__ be used here?
