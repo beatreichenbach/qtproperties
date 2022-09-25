@@ -6,6 +6,9 @@ class Float2:
     x: float = 0
     y: float = 0
 
+    def __iter__(self):
+        return iter((self.x, self.y))
+
 
 @dataclass
 class Int2:
@@ -15,3 +18,6 @@ class Int2:
     def __post_init__(self):
         for attr in ('x', 'y'):
             setattr(self, attr, int(getattr(self, attr)))
+
+    def __iter__(self):
+        return (self.x, self.y)

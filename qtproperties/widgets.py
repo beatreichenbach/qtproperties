@@ -391,8 +391,12 @@ class EnumProperty(PropertyWidget):
         super().init_ui()
 
         self.combo = QtWidgets.QComboBox()
+
+        formatting = lambda e: e.name.title()
         for e in self.enum:
-            self.combo.addItem(e.name, e)
+            # TODO: should we be able to provide a format function?
+            # e.g formatting=lambda e: e.name.title()
+            self.combo.addItem(formatting(e), e)
         self.layout().addWidget(self.combo)
         # self.layout().addStretch()
 

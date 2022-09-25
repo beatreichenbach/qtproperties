@@ -1,10 +1,12 @@
 from functools import partial
 
-from PySide2 import QtWidgets, QtCore, QtGui
+from PySide2 import QtWidgets, QtCore
 
 
 QWIDGETSIZE_MAX = (1 << 24) - 1
 
+
+# TODO: initialize widget with updated min_size_hint?
 
 class PropertyEditor(QtWidgets.QWidget):
     values_changed = QtCore.Signal(dict)
