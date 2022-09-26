@@ -15,10 +15,10 @@ class PropertyEditor(QtWidgets.QWidget):
         super().__init__(parent)
 
         self.tab_widget = None
-        self.tabs = {}
+        self.tabs = {}  # {'tab_name': tab_widget}
         self.current_tab = None
 
-        self.groups = {}
+        self.groups = {}  # {'tab_name': {'group_name': group_widget}}
 
         self.setLayout(QtWidgets.QVBoxLayout())
         self.layout().addStretch()
@@ -52,11 +52,11 @@ class PropertyEditor(QtWidgets.QWidget):
         self.tab_widget.addTab(widget, label)
         self.tabs[name] = widget
 
-    def create_property_group(self, name, tab=None, collapsible=False):
+    def create_property_group(self, name, tab=None, collapsible=False, link=None):
         if name in self.groups.get(tab, {}):
             raise ValueError(f'Cannot create property group {name} (name already exsits)')
 
-        group = PropertyGroup()
+        group = PropertyGroup(link=link)
 
         self.add_property_group(name, group, tab, collapsible)
         return group
@@ -127,25 +127,25 @@ class PropertyEditor(QtWidgets.QWidget):
 class PropertyGroup(QtWidgets.QWidget):
     values_changed = QtCore.Signal(dict)
 
-    def __init__(self, parent_group=None, parent=None):
+    def __init__(self, link=None, parent=None):
         super().__init__(parent)
         self.widgets = {}
         self.boxes = {}
-        self.setLayout(QtWidgets.QGridLayout())
-        self.override = False
-        self.parent_group = parent_group
+        self.link = link
 
-        if parent_group:
-            self.override = True
-            for widget in self.parent_group.widgets.values():
-                override_widget = widget.__class__(widget)
-                self.add_property(override_widget)
+        self.setLayout(QtWidgets.QGridLayout())
+
+        if link:
+            for linked_widget in self.link.widgets.values():
+                cls = linked_widget.__class__
+                widget = cls.from_widget(linked_widget)
+                self.add_property(widget, link=linked_widget)
 
     def __repr__(self):
-        group = f'({self.parent_group})' if self.parent_group else ''
-        return f'{self.__class__.__name__}{group}'
+        args = f'({self.link})' if self.link else ''
+        return f'{self.__class__.__name__}{args}'
 
-    def add_property(self, widget, box=None):
+    def add_property(self, widget, link=None, box=None):
         if widget.name in self.widgets:
             raise ValueError(f'Cannot add property {widget.name} (name already exsits)')
 
@@ -169,13 +169,14 @@ class PropertyGroup(QtWidgets.QWidget):
         layout.addWidget(label, row, 1)
         layout.addWidget(widget, row, 2)
 
-        widget.valueChanged.connect(self.value_changed)
-
-        if self.override:
+        if link is not None:
             checkbox = QtWidgets.QCheckBox()
             checkbox.stateChanged.connect(partial(self.override_changed, checkbox))
             layout.addWidget(checkbox, row, 0)
-            self.set_widget_row_enabled(widget, False)
+            widget.link = link
+            self.set_widget_row_enabled(checkbox, False)
+
+        widget.valueChanged.connect(self.value_changed)
 
         self.widgets[widget.name] = widget
 
@@ -185,7 +186,6 @@ class PropertyGroup(QtWidgets.QWidget):
     def set_widget_row_enabled(self, widget, enabled):
         # get parent grid layout
         layout = widget.parentWidget().layout()
-
         if not isinstance(layout, QtWidgets.QGridLayout):
             return
 
@@ -206,6 +206,17 @@ class PropertyGroup(QtWidgets.QWidget):
         if item:
             widget = item.widget()
             widget.setEnabled(enabled)
+
+            if self.link is not None:
+                linked_widget = widget.link
+                if not hasattr(widget, 'set_value'):
+                    widget.set_value = partial(setattr, widget, 'value')
+
+                if enabled:
+                    linked_widget.valueChanged.disconnect(widget.set_value)
+                else:
+                    widget.value = linked_widget.value
+                    linked_widget.valueChanged.connect(widget.set_value)
 
     def value_changed(self):
         self.values_changed.emit(self.values)
@@ -325,8 +336,9 @@ def main():
     editor.add_property(widgets.IntProperty('int'), group='group1', tab='tab1')
     editor.add_property(widgets.FloatProperty('float'), group='group1', tab='tab1')
 
-    editor.values_changed.connect(logging.debug)
+    editor.create_property_group('group2', tab='tab2', link=editor.groups['tab1']['group1'])
 
+    editor.values_changed.connect(logging.debug)
     editor.show()
     sys.exit(app.exec_())
 

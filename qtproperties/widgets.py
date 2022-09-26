@@ -20,7 +20,6 @@ class PropertyWidget(QtWidgets.QWidget):
 
     def __init__(self, name, **kwargs):
         super().__init__()
-
         kwargs['name'] = name
         self.init_kwargs(kwargs)
         self.init_ui()
@@ -69,7 +68,7 @@ class PropertyWidget(QtWidgets.QWidget):
 
     @classmethod
     def from_widget(cls, widget, **kwargs):
-        if not isinstance(widget, cls.__class__):
+        if not isinstance(widget, cls):
             raise TypeError(
                 'TypeError: Argument \'widget\' has incorrect type '
                 f'(expected {cls.__name__}, got {type(widget).__name__})'
@@ -77,7 +76,7 @@ class PropertyWidget(QtWidgets.QWidget):
         new_kwargs = widget.kwargs
         new_kwargs.update(kwargs)
         name = new_kwargs.pop('name')
-        return cls(name, new_kwargs)
+        return cls(name, **new_kwargs)
 
 
 class IntProperty(PropertyWidget):
@@ -530,7 +529,6 @@ class IntLineEdit(QtWidgets.QLineEdit):
         super().__init__(parent)
         self._value = 0
         self.editingFinished.connect(self.strip_padding)
-        # self.textChanged.connect(lambda: self.valueChanged.emit(self.value))
         self.setValidator(IntValidator())
 
         self.value = 1
@@ -576,6 +574,11 @@ class IntLineEdit(QtWidgets.QLineEdit):
     def sizeHint(self):
         size = super().sizeHint()
         size.setWidth(60)
+        return size
+
+    def minimumSizeHint(self):
+        size = super().minimumSizeHint()
+        size.setWidth(24)
         return size
 
     def setMinimum(self, minimum):
