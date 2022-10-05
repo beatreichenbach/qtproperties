@@ -4,9 +4,13 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Float2:
-    x: float = 0
-    y: float = 0
+class Int2:
+    x: int = 0
+    y: int = 0
+
+    def __post_init__(self):
+        for attr in ('x', 'y'):
+            setattr(self, attr, int(getattr(self, attr)))
 
     def __iter__(self):
         return iter((self.x, self.y))
@@ -36,15 +40,11 @@ class Float2:
         y = self.y * other.y if isinstance(other, self.__class__) else self.y * other
         return self.__class__(x, y)
 
-
+# TODO: inherit from Int2
 @dataclass
-class Int2:
-    x: int = 0
-    y: int = 0
-
-    def __post_init__(self):
-        for attr in ('x', 'y'):
-            setattr(self, attr, int(getattr(self, attr)))
+class Float2:
+    x: float = 0
+    y: float = 0
 
     def __iter__(self):
         return iter((self.x, self.y))
