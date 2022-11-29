@@ -4,7 +4,7 @@ from typing import Any, Union
 
 from PySide2 import QtWidgets, QtGui, QtCore
 
-from qtproperties import data
+from qtproperties import data, utils
 
 
 MAX_INT = (1 << 31) - 1
@@ -18,7 +18,7 @@ class PropertyWidget(QtWidgets.QWidget):
         'default': None
     }
 
-    def __init__(self, name, **kwargs):
+    def __init__(self, name=None, **kwargs):
         super().__init__()
         kwargs['name'] = name
         self.init_kwargs(kwargs)
@@ -32,8 +32,8 @@ class PropertyWidget(QtWidgets.QWidget):
         # store kwargs to be able to clone the widget later
         self.kwargs = kwargs
 
-        if 'label' not in kwargs:
-            kwargs['label'] = kwargs['name'].replace('_', ' ').title()
+        if kwargs['name'] and 'label' not in kwargs:
+            kwargs['label'] = utils.title(kwargs['name'])
 
         for arg, value in kwargs.items():
             if hasattr(self, arg):
@@ -125,18 +125,18 @@ class IntProperty(PropertyWidget):
         # store value for subclasses
         self.exponent = exponent
 
-        step = pow(10, self.exponent - 1)
-        large_step = pow(10, self.exponent)
-        normalize = pow(10, -self.exponent)
+        step = pow(10, max(self.exponent - 2, 0))
 
         self.slider.setSingleStep(step)
-        self.slider.setPageStep(large_step)
-        self.slider.setTickInterval(large_step * normalize)
+        self.slider.setPageStep(step * 10)
+        self.slider.setTickInterval(step * 10)
         self.slider.setMinimum(self.slider_min)
         self.slider.setMaximum(self.slider_max)
         self.slider.setVisible(self.show_slider)
 
         self.slider.mouseDoubleClickEvent = self.mouseDoubleClickEvent
+
+        self.setFocusProxy(self.line)
 
     def connect_ui(self):
         self.slider.valueChanged.connect(self.slider_value_changed)
@@ -215,6 +215,8 @@ class FloatProperty(IntProperty):
         self.slider.setMinimum(self.slider_min * normalize)
         self.slider.setMaximum(self.slider_max * normalize)
 
+        self.setFocusProxy(self.line)
+
     def slider_value_changed(self, value):
         slider_range = self.slider.maximum() - self.slider.minimum()
         percentage = (value - self.slider.minimum()) / slider_range
@@ -251,6 +253,8 @@ class Int2Property(PropertyWidget):
         self.line2.setMinimum(self.line_min)
         self.line2.setMaximum(self.line_max)
         self.layout().addWidget(self.line2)
+
+        self.setFocusProxy(self.line1)
 
     def connect_ui(self):
         self.line1.valueChanged.connect(self.line_value_changed)
@@ -299,10 +303,41 @@ class Float2Property(Int2Property):
         self.line2.setDecimals(self.decimals)
         self.layout().addWidget(self.line2)
 
+        self.setFocusProxy(self.line1)
+
     def line_value_changed(self, value):
         value = data.Float2(self.line1.value, self.line2.value)
         self._value = value
         self.valueChanged.emit(value)
+
+
+class StringProperty(PropertyWidget):
+    valueChanged = QtCore.Signal(str)
+    accepted_type = str
+
+    def __init__(self, *args, **kwargs):
+        self.defaults['default'] = ''
+
+        super().__init__(*args, **kwargs)
+
+    def init_ui(self):
+        super().init_ui()
+
+        self.line = QtWidgets.QLineEdit()
+        self.layout().addWidget(self.line)
+        self.setFocusProxy(self.line)
+
+    def connect_ui(self):
+        self.line.textChanged.connect(self.valueChanged)
+
+    @property
+    def value(self):
+        return self.line.text()
+
+    @value.setter
+    def value(self, value):
+        self.validate_value(value)
+        self.line.setText(value)
 
 
 class PathProperty(PropertyWidget):
@@ -330,6 +365,7 @@ class PathProperty(PropertyWidget):
         self.layout().addWidget(self.button)
 
         self.layout().setStretch(0, 1)
+        self.setFocusProxy(self.line)
 
     def connect_ui(self):
         self.button.clicked.connect(self.browse)
@@ -391,13 +427,14 @@ class EnumProperty(PropertyWidget):
 
         self.combo = QtWidgets.QComboBox()
 
-        formatting = lambda e: e.name.title()
+        formatting = lambda e: utils.title(e.name)
         for e in self.enum:
             # TODO: should we be able to provide a format function?
             # e.g formatting=lambda e: e.name.title()
             self.combo.addItem(formatting(e), e)
         self.layout().addWidget(self.combo)
         # self.layout().addStretch()
+        self.setFocusProxy(self.combo)
 
     def connect_ui(self):
         self.combo.currentIndexChanged.connect(self.combo_index_changed)
@@ -431,6 +468,7 @@ class BoolProperty(PropertyWidget):
         self.checkbox = QtWidgets.QCheckBox()
         self.layout().addWidget(self.checkbox)
         self.layout().addStretch()
+        self.setFocusProxy(self.checkbox)
 
     def connect_ui(self):
         self.checkbox.toggled.connect(self.state_changed)

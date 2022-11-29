@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 
 # TODO: implement operations
 
@@ -10,7 +11,10 @@ class Int2:
 
     def __post_init__(self):
         for attr in ('x', 'y'):
-            setattr(self, attr, int(getattr(self, attr)))
+            value = getattr(self, attr)
+            if isinstance(value, float):
+                value = math.floor(value)
+            setattr(self, attr, int(value))
 
     def __iter__(self):
         return iter((self.x, self.y))

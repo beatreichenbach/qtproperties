@@ -2,6 +2,7 @@ from functools import partial
 
 from PySide2 import QtWidgets, QtCore
 
+from qtproperties import utils
 
 QWIDGETSIZE_MAX = (1 << 24) - 1
 
@@ -48,7 +49,7 @@ class PropertyEditor(QtWidgets.QWidget):
         return scroll_area
 
     def add_tab(self, name, widget):
-        label = name.replace('_', ' ').title()
+        label = utils.title(name.replace('_', ' '))
         self.tab_widget.addTab(widget, label)
         self.tabs[name] = widget
 
@@ -69,7 +70,7 @@ class PropertyEditor(QtWidgets.QWidget):
         else:
             parent = self.create_tab(tab).widget()
 
-        label = name.replace('_', ' ').title() if name else ''
+        label = utils.title(name) if name else ''
         if collapsible:
             box = CollapsibleBox(label)
         else:
@@ -146,6 +147,8 @@ class PropertyGroup(QtWidgets.QWidget):
         return f'{self.__class__.__name__}{args}'
 
     def add_property(self, widget, link=None, box=None):
+        if not widget.name:
+            raise ValueError('Cannot add property with name = None')
         if widget.name in self.widgets:
             raise ValueError(f'Cannot add property {widget.name} (name already exsits)')
 
@@ -165,8 +168,9 @@ class PropertyGroup(QtWidgets.QWidget):
             layout = box_widget.layout()
             row = layout.rowCount()
 
-        label = QtWidgets.QLabel(widget.label)
-        layout.addWidget(label, row, 1)
+        if widget.label:
+            label = QtWidgets.QLabel(widget.label)
+            layout.addWidget(label, row, 1)
         layout.addWidget(widget, row, 2)
 
         if link is not None:
@@ -319,6 +323,7 @@ def main():
     editor.add_property(widgets.Float2Property('float2'))
     editor.add_property(widgets.BoolProperty('bool'))
     editor.add_property(widgets.PathProperty('path'))
+    editor.add_property(widgets.StringProperty('string'))
     editor.add_property(widgets.ColorProperty('color'))
     editor.add_property(widgets.EnumProperty('enum', enum=enum))
 
