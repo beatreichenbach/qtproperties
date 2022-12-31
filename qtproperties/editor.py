@@ -100,7 +100,7 @@ class PropertyEditor(QtWidgets.QWidget):
                 self.create_tab(tab)
             group_widget = self.create_property_group(group, tab)
 
-        group_widget.add_property(widget, box)
+        return group_widget.add_property(widget, box)
 
     def group_values_changed(self, group, tab, values):
         self.values_changed.emit(self.values)
@@ -183,6 +183,7 @@ class PropertyGroup(QtWidgets.QWidget):
         widget.valueChanged.connect(self.value_changed)
 
         self.widgets[widget.name] = widget
+        return widget
 
     def override_changed(self, checkbox, state):
         self.set_widget_row_enabled(checkbox, checkbox.isChecked())

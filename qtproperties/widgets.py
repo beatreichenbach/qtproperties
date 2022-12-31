@@ -134,8 +134,6 @@ class IntProperty(PropertyWidget):
         self.slider.setMaximum(self.slider_max)
         self.slider.setVisible(self.show_slider)
 
-        self.slider.mouseDoubleClickEvent = self.mouseDoubleClickEvent
-
         self.setFocusProxy(self.line)
 
     def connect_ui(self):
@@ -146,13 +144,6 @@ class IntProperty(PropertyWidget):
         super().resizeEvent(event)
         if self.show_slider:
             self.slider.setVisible(event.size().width() > 200)
-
-    def mouseDoubleClickEvent(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            self.value = self.default
-            event.accept()
-        else:
-            super().mouseDoubleClickEvent(event)
 
     def slider_value_changed(self, value):
         self._value = value
@@ -268,9 +259,9 @@ class Int2Property(PropertyWidget):
     @PropertyWidget.value.setter
     def value(self, value):
         self.validate_value(value)
-        self._value = value
         self.line1.setValue(value.x)
         self.line2.setValue(value.y)
+        self._value = value
         self.valueChanged.emit(value)
 
 
@@ -308,6 +299,7 @@ class Float2Property(Int2Property):
     def line_value_changed(self, value):
         value = data.Float2(self.line1.value, self.line2.value)
         self._value = value
+        # logging.debug(value)
         self.valueChanged.emit(value)
 
 
@@ -317,27 +309,40 @@ class StringProperty(PropertyWidget):
 
     def __init__(self, *args, **kwargs):
         self.defaults['default'] = ''
+        self.defaults['area'] = False
 
         super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
 
-        self.line = QtWidgets.QLineEdit()
-        self.layout().addWidget(self.line)
-        self.setFocusProxy(self.line)
+        if self.area:
+            self.text = QtWidgets.QPlainTextEdit()
+        else:
+            self.text = QtWidgets.QLineEdit()
+        self.layout().addWidget(self.text)
+        self.setFocusProxy(self.text)
 
     def connect_ui(self):
-        self.line.textChanged.connect(self.valueChanged)
+        if self.area:
+            self.text.textChanged.connect(lambda: self.valueChanged.emit(self.value))
+        else:
+            self.text.textChanged.connect(self.valueChanged)
 
     @property
     def value(self):
-        return self.line.text()
+        if self.area:
+            return self.text.toPlainText()
+        else:
+            return self.text.text()
 
     @value.setter
     def value(self, value):
         self.validate_value(value)
-        self.line.setText(value)
+        if self.area:
+            self.text.setPlainText(value)
+        else:
+            self.text.setText(value)
 
 
 class PathProperty(PropertyWidget):
