@@ -4,6 +4,7 @@ import math
 # TODO: implement operations
 # TODO: it is possible to assign string for x and y, why?
 
+
 @dataclass
 class Int2:
     x: int = 0

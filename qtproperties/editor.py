@@ -100,7 +100,20 @@ class PropertyEditor(QtWidgets.QWidget):
                 self.create_tab(tab)
             group_widget = self.create_property_group(group, tab)
 
-        return group_widget.add_property(widget, box)
+        return group_widget.add_property(widget, box=box)
+
+    def add_separator(self, group=None, tab=None, box=None):
+        if self.groups.get(tab):
+            if self.groups[tab].get(group):
+                group_widget = self.groups[tab][group]
+            else:
+                group_widget = self.create_property_group(group, tab)
+        else:
+            if tab is not None:
+                self.create_tab(tab)
+            group_widget = self.create_property_group(group, tab)
+
+        return group_widget.add_separator(box)
 
     def group_values_changed(self, group, tab, values):
         self.values_changed.emit(self.values)
@@ -171,19 +184,45 @@ class PropertyGroup(QtWidgets.QWidget):
         if widget.label:
             label = QtWidgets.QLabel(widget.label)
             layout.addWidget(label, row, 1)
+            widget.enabledChanged.connect(label.setEnabled)
         layout.addWidget(widget, row, 2)
 
         if link is not None:
             checkbox = QtWidgets.QCheckBox()
-            checkbox.stateChanged.connect(partial(self.override_changed, checkbox))
+            checkbox.stateChanged.connect(widget.setEnabled)
             layout.addWidget(checkbox, row, 0)
             widget.link = link
-            self.set_widget_row_enabled(checkbox, False)
+            checkbox.setChecked(False)
 
         widget.valueChanged.connect(self.value_changed)
 
         self.widgets[widget.name] = widget
         return widget
+
+    def add_separator(self, box=None):
+
+        layout = self.layout()
+        row = layout.rowCount()
+
+        if box:
+            box_widget = self.boxes.get(box)
+            if not box_widget:
+                box_widget = CollapsibleBox(box, border=False)
+                layout.addWidget(box_widget, row, 0, 1, -1)
+                layout = QtWidgets.QGridLayout()
+                layout.setContentsMargins(0, 0, 0, 0)
+                box_widget.setLayout(layout)
+                self.boxes[box] = box_widget
+            layout = box_widget.layout()
+            row = layout.rowCount()
+
+        line = QtWidgets.QFrame()
+        line.setMinimumHeight(1)
+        line.setFrameShape(QtWidgets.QFrame.StyledPanel)
+        line.setFrameShadow(QtWidgets.QFrame.Sunken)
+        layout.addWidget(line, row, 0, 1, 3)
+
+        return line
 
     def override_changed(self, checkbox, state):
         self.set_widget_row_enabled(checkbox, checkbox.isChecked())
@@ -311,15 +350,19 @@ def main():
     from enum import Enum
     import logging
 
+    import qtdarkstyle
+
     logging.getLogger().setLevel(logging.DEBUG)
 
     app = QtWidgets.QApplication()
+    qtdarkstyle.apply_style()
     editor = PropertyEditor()
 
     enum = Enum('Number', ('one', 'two', 'three'))
 
     editor.add_property(widgets.IntProperty('int'))
     editor.add_property(widgets.FloatProperty('float'))
+    editor.add_separator()
     editor.add_property(widgets.Int2Property('int2'))
     editor.add_property(widgets.Float2Property('float2'))
     editor.add_property(widgets.BoolProperty('bool'))
@@ -341,6 +384,9 @@ def main():
 
     editor.add_property(widgets.IntProperty('int'), group='group1', tab='tab1')
     editor.add_property(widgets.FloatProperty('float'), group='group1', tab='tab1')
+
+    editor.add_property(widgets.IntProperty('int1'), group='group1', tab='tab1', box='box1')
+    editor.add_property(widgets.FloatProperty('float1'), group='group1', tab='tab1', box='box1')
 
     editor.create_property_group('group2', tab='tab2', link=editor.groups['tab1']['group1'])
 

@@ -1,3 +1,4 @@
+import logging
 import math
 from enum import Enum
 from typing import Any, Union
@@ -12,19 +13,22 @@ MAX_INT = (1 << 31) - 1
 
 class PropertyWidget(QtWidgets.QWidget):
     valueChanged = QtCore.Signal()
+    enabledChanged = QtCore.Signal(bool)
     accepted_type = Any
-
-    defaults = {
-        'default': None
-    }
 
     def __init__(self, name=None, **kwargs):
         super().__init__()
         kwargs['name'] = name
+        self.init_defaults()
         self.init_kwargs(kwargs)
         self.init_ui()
         self.connect_ui()
         self.value = self.default
+
+    def init_defaults(self):
+        self.defaults = {
+            'default': None
+        }
 
     def init_kwargs(self, kwargs):
         kwargs = dict(self.defaults, **kwargs)
@@ -48,6 +52,11 @@ class PropertyWidget(QtWidgets.QWidget):
 
     def connect_ui(self):
         pass
+
+    def changeEvent(self, event):
+        if event.type() == QtCore.QEvent.EnabledChange:
+            self.enabledChanged.emit(self.isEnabled())
+        super().changeEvent(event)
 
     @property
     def value(self):
@@ -83,15 +92,14 @@ class IntProperty(PropertyWidget):
     valueChanged = QtCore.Signal(int)
     accepted_type = int
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = 0
         self.defaults['slider_min'] = 0
         self.defaults['slider_max'] = 10
         self.defaults['line_min'] = -MAX_INT
         self.defaults['line_max'] = MAX_INT
         self.defaults['show_slider'] = True
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -178,10 +186,11 @@ class FloatProperty(IntProperty):
     valueChanged = QtCore.Signal(float)
     accepted_type = Union[float, int]
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['decimals'] = 4
-
-        super().__init__(*args, **kwargs)
+        self.defaults['line_min'] = float('-inf')
+        self.defaults['line_max'] = float('inf')
 
     def init_ui(self):
         super().init_ui()
@@ -225,12 +234,11 @@ class Int2Property(PropertyWidget):
     valueChanged = QtCore.Signal(data.Int2)
     accepted_type = data.Int2
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = data.Int2(0, 0)
         self.defaults['line_min'] = -(MAX_INT)
         self.defaults['line_max'] = MAX_INT
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -269,10 +277,11 @@ class Float2Property(Int2Property):
     valueChanged = QtCore.Signal(data.Float2)
     accepted_type = Union[data.Int2, data.Float2]
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['decimals'] = 2
-
-        super().__init__(*args, **kwargs)
+        self.defaults['line_min'] = float('-inf')
+        self.defaults['line_max'] = float('inf')
 
     def init_ui(self):
         super().init_ui()
@@ -299,7 +308,6 @@ class Float2Property(Int2Property):
     def line_value_changed(self, value):
         value = data.Float2(self.line1.value, self.line2.value)
         self._value = value
-        # logging.debug(value)
         self.valueChanged.emit(value)
 
 
@@ -307,11 +315,10 @@ class StringProperty(PropertyWidget):
     valueChanged = QtCore.Signal(str)
     accepted_type = str
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = ''
         self.defaults['area'] = False
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -353,11 +360,10 @@ class PathProperty(PropertyWidget):
     SAVE_FILE = 2
     EXISTING_DIR = 3
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = ''
         self.defaults['method'] = self.OPEN_FILE
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -462,10 +468,9 @@ class BoolProperty(PropertyWidget):
     valueChanged = QtCore.Signal(bool)
     accepted_type = bool
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = False
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -495,13 +500,12 @@ class ColorProperty(PropertyWidget):
     valueChanged = QtCore.Signal(QtGui.QColor)
     accepted_type = QtGui.QColor
 
-    def __init__(self, *args, **kwargs):
+    def init_defaults(self):
+        super().init_defaults()
         self.defaults['default'] = QtGui.QColor(0, 0, 0)
         self.defaults['color_min'] = 0
         self.defaults['color_max'] = MAX_INT
         self.defaults['decimals'] = 2
-
-        super().__init__(*args, **kwargs)
 
     def init_ui(self):
         super().init_ui()
@@ -573,8 +577,8 @@ class IntLineEdit(QtWidgets.QLineEdit):
         self._value = 0
         self.editingFinished.connect(self.strip_padding)
         self.setValidator(IntValidator())
-
-        self.value = 1
+        # TODO: why?
+        # self.value = 1
 
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Up:
@@ -601,7 +605,6 @@ class IntLineEdit(QtWidgets.QLineEdit):
 
     @value.setter
     def value(self, value):
-        pass
         if value != self._value:
             self.valueChanged.emit(value)
         self._value = value
@@ -625,10 +628,12 @@ class IntLineEdit(QtWidgets.QLineEdit):
         return size
 
     def setMinimum(self, minimum):
-        self.validator().setBottom(minimum)
+        if minimum not in (float('-inf'), float('inf')):
+            self.validator().setBottom(minimum)
 
     def setMaximum(self, maximum):
-        self.validator().setTop(maximum)
+        if maximum not in (float('-inf'), float('inf')):
+            self.validator().setTop(maximum)
 
     def step(self, add):
         text = self.text() or '0'
@@ -690,9 +695,9 @@ class IntLineEdit(QtWidgets.QLineEdit):
 
     def strip_padding(self):
         value = self.value
+        self.value = value  # emit signal
         if int(value) == value:
             value = int(value)
-        self.value = value
         self.setText(str(value))
 
 
@@ -701,9 +706,9 @@ class FloatLineEdit(IntLineEdit):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         validator = DoubleValidator()
         validator.setNotation(QtGui.QDoubleValidator.StandardNotation)
+        validator = QtGui.QDoubleValidator()
         self.setValidator(validator)
 
     def setDecimals(self, decimals):
@@ -770,7 +775,6 @@ class FloatLineEdit(IntLineEdit):
                 step_index = -1
             position = decimal_index - step_index
         return position
-
 
 class IntValidator(QtGui.QIntValidator):
     def fixup(self, text):
